@@ -145,8 +145,8 @@ class PGLogger(bdb.Bdb):
     def _runscript(self, script_str):
         self._wait_for_mainpyfile = 1
         user_builtins = {}
-        for (k, v) in __builtins__.__dict__.items():  # .__dict__ only needed to test this function itself somehow
-        # for (k, v) in __builtins__.items(): # remove .__dict__ makes object work 
+        # for (k, v) in __builtins__.__dict__.items():  # .__dict__ only needed to test this function itself somehow
+        for (k, v) in __builtins__.items(): # remove .__dict__ makes object work 
             if k in ('reload', 'input', 'apply', 'open', 'compile', 
                      '__import__', 'file', 'eval', 'execfile',
                      'exit', 'quit', 'raw_input', 'dir', 'globals', 'locals', 'vars', 'compile'):

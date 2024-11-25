@@ -181,6 +181,6 @@ def loadLines(app):
     app.current_line = app.lines[0]
 
 def main():
-    runApp(height=500,width=1000)
+    runApp(height=800,width=1200)
 
 main()
