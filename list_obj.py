@@ -1,13 +1,16 @@
 
 class list_obj():
-    def  __init__(self, list, x, y, id):
-        self.list = list
+    def  __init__(self, lst, x, y, idn):
+        self.list = lst
         self.x = x
         self.y = y
-        self.id = id
+        self.id = idn
 
+    def get_list(self):
+        return self.lst
+    
     def get_id(self):
-        return self.id
+        return self.idn
     
     def get_x(self):
         return self.x

@@ -2,6 +2,8 @@ from cmu_graphics import *
 import test
 import json
 import list_obj
+import var_obj
+from PIL import Image
 
 def onAppStart(app):
     app.frame_width, app.frame_height = 1200, 800
@@ -10,6 +12,10 @@ def onAppStart(app):
     app.onyx = color=rgb(57, 62, 65)
     app.grayish = color=rgb(219, 205, 198)
     app.light_purple = color=rgb(209,177,200)
+
+    app.prim_color = color=rgb(255, 203, 252)
+    app.list_color = color=rgb(87, 98, 255)
+    app.dict_color = color=rgb(255, 87, 247)
 
     app.topbar_width, app.topbar_height = app.frame_width, 85
     app.input_width, app.input_height = 480, app.frame_height - app.topbar_height
@@ -26,13 +32,15 @@ def onAppStart(app):
 
     app.edit_mode = False
     app.visual_mode = False
-    app.text_cursor_x, app.text_cursor_y = 60, 110
+    app.text_cursor_x, app.text_cursor_y = 55, 100
     app.text_cursor_blink = True
 
     app.stepsPerSecond = 2
 
-    app.code_x, app.code_y = 60,112
+    app.code_x, app.code_y = 55,102
     app.code = ''
+    app.code_lines = ['']
+    app.code_lines_index = 0
 
     app.trace = ''
 
@@ -43,7 +51,7 @@ def onAppStart(app):
     app.line_index = 0
     app.lines = []
     app.current_line = None
-    app.existing_objects = set()
+    app.existing_objects = {}
     app.data_dict = {
         'line' : None,
         'event' : handleEvent,
@@ -63,8 +71,12 @@ def onAppStart(app):
     }
 
     app.output_x, app.output_y = app.input_width + 50, app.topbar_height + 500
-    app.globals_x, app.globals_y = 500, 60
-    app.locals_x, app.locals_y = 500, 200
+    app.globals_x, app.globals_y = app.input_width + 50, app.topbar_height + 70
+    app.locals_x, app.locals_y = app.input_width + 50, app.topbar_height + 330
+
+    app.letter_space = 12
+    app.line_space = 20
+    app.vars = set()
 
 def redrawAll(app):
     drawRect(0, 0, app.topbar_width, app.topbar_height, fill=app.dark_purple)
@@ -77,7 +89,9 @@ def redrawAll(app):
     drawLine(app.numberline_x, app.topbar_height, app.numberline_x, app.frame_height - app.buttonbox_height, fill=app.line_purple, lineWidth=5)
     drawLine(0, app.frame_height - app.buttonbox_height, app.buttonbox_width, app.frame_height - app.buttonbox_height, fill = app.line_purple, lineWidth = 5)
 
-    drawImage('settings.png', app.settings_x, app.settings_y, width = app.settings_size, height=app.settings_size, rotateAngle=app.settings_angle, align='center')
+    settings = Image.open('settings.png')
+    drawImage(CMUImage(settings), app.settings_x, app.settings_y, width = app.settings_size, height=app.settings_size, rotateAngle=app.settings_angle, align='center')  
+    # drawImage('settings.png', app.settings_x, app.settings_y, width = app.settings_size, height=app.settings_size, rotateAngle=app.settings_angle, align='center')
     drawImage('help.png', app.help_x, app.help_y)
     drawImage('button.png', app.buttonbox_width // 2 - 110, app.frame_height - app.buttonbox_height + 50, align='center')
     drawLabel('RESET', app.buttonbox_width // 2 - 110, app.frame_height - app.buttonbox_height + 50, align='center', size=20, fill=app.dark_purple, bold=True)
@@ -87,12 +101,15 @@ def redrawAll(app):
     drawLabel('PyViz', app.topbar_width // 2, app.topbar_height - 43, fill=app.grayish, size=50, font='monospace', bold=True)
 
     drawLine(app.text_cursor_x, app.text_cursor_y, app.text_cursor_x, app.text_cursor_y + 20, visible=app.text_cursor_blink, fill='white')
-    drawLabel(app.code, app.code_x, app.code_y, fill='white', size=20, align='top-left', font='monospace')
 
-    if app.visual_mode:
+    for i in range(len(app.code_lines)):
+        drawLabel(app.code_lines[i], app.code_x, app.code_y + i * 20, fill='white', size=20, align = 'top-left', font='monospace')
+    # drawLabel(app.code, app.code_x, app.code_y, fill='white', size=20, align='top-left', font='monospace')
+
+    if app.visual_mode and not app.drawn:
         drawLabel('Globals:', app.input_width + 50, app.topbar_height + 30, align='left', fill='white', size=16)
         drawLabel('Output:', app.input_width + 50, app.topbar_height + 500, align='left', fill='green', size=16)
-        drawCode(app)
+        # drawCode(app)
         drawVisual(app)
     
 def drawCode(app):
@@ -103,15 +120,25 @@ def drawCode(app):
         line_color = 'black'
         if i == app.line_to_highlight:
             line_color = 'green'
-        drawLabel(line, app.text_cursor_x, app.text_cursor_y + (i-1) * app.indent, align='left', fill = 'white')
+        drawLabel(line, 55, 110 + (i-1) * app.indent, size=20, align='left', fill = 'white')
         i += 1
 
 def drawVisual(app):
     if app.current_line == None: return
     for data in app.current_line:
         data_value = app.current_line[data]
+        if data == 'globals':
+            for var in data_value:
+                app.visual_dict[data_value](var, data_value[var][1], app.globals_x, app.globals_y)
+        elif data == 'locals':
+            for var in data_value:
+                app.visual_dict[data_value](var, data_value[var][1], app.locals_x, app.locals_y)
+
+def updateStackState(app):
+    if app.current_line == None: return
+    for data in app.current_line:
+        data_value = app.current_line[data]
         if data == 'line': continue
-        print(str(data))
         app.data_dict[data](app, data_value)
 
 def handleEvent(app, event):
@@ -134,7 +161,8 @@ def handleGlobal(app, globals):
         if (type_val == "<class 'str'>" or type_val == "<class 'int'>"):
             drawVar(app, var, val, app.globals_x, app.globals_y, i)
         elif (type_val == "<class 'list'>"):
-            handleList(app, val)
+            handleList(app, var, val[1], app.globals_x, app.globals_y, val[2])
+            # drawList(app, var, val[1], app.globals_x, app.globals_y, val[2])
 
         i += 1
 
@@ -144,51 +172,65 @@ def handleLocal(app, locals):
     drawLabel(locals[0][0], app.locals_x, app.locals_y, align='left', size=16, fill='white')
     i = 1
     for var in locals[0][1]:
-        # print()
+        print(var)
         val = locals[0][1][var]
         type_val = val[0]
-        print(type_val)
+        # print(type_val)
         if (type_val == "<class 'str'>" or type_val == "<class 'int'>"):
             drawVar(app, var, locals[0][1][var], app.locals_x, app.locals_y, i)
         elif (type_val == "<class 'list'>"):
-            drawList(app, val[1])
+            handleList(app, var, val[1], app.locals_x, app.locals_y, val[2])
+            # drawList(app, var, val[1], app.locals_x, app.locals_y, val[2])
  
         i += 1
-    # print(locals)
 
 def handleStdout(app, stdout):
     if len(stdout) == 0:
         return
     drawLabel(stdout, app.output_x + 40, app.output_y, fill = 'white')
 
-def handleList(app, val):
-    if val[2] not in app.obj_ids:
-        app.objs[val[2]] = list_obj.list_obj(list, 300, 300, val[2])
-        drawList(app, val[1])
+def handleList(app, var, lst, x, y, idn):
+    new_list = list_obj.list_obj(lst, x, y, idn)
+    v = var_obj.var_obj(var, x, y, new_list)
+    if idn not in app.existing_objects:
+        app.existing_objects[idn] = new_list
+        return v
     else:
-        app.pointers[val] = app.obj_ids[val[2]]
-        drawPointer(app)
-        
+        return app.existing_objects[idn]
 
-def drawPointer(app, obj):
-    pass
+def drawPointer(app, var_obj):
+    drawLine(var_obj.get_x() + len(var_obj.get_name()) * app.letter_space + 10, var_obj.get_y(), var_obj.get_x() + len(var_obj.get_name()) * app.letter_space + 90, var_obj.get_y(), fill='white')
 
-def drawList(app, list, id):
-    new_list = list_obj.list_obj(list, 300, 100)
+def drawList(app, var, v, x, y):
+    # new_list = list_obj.list_obj(list, x, y, id)
+    # v = var_obj.var_obj(var, x, y, new_list)
     # print(id(list))
-    app.existing_objects.add(new_list)
-    i = 0
-    for element in list:
-        drawLabel(element, new_list.get_x() + 10 * i, new_list.get_y())
-        i += 1
+    new_list = v.get_list()
+    drawRect(x - 5, y, app.letter_space  * len(var) + 10, app.line_space + 10, align='left', fill=None, border=app.prim_color)
+    drawLabel(var, x, y, size=20, align = 'left', fill='white', font = 'monospace')
 
-def drawVar(app, var, val, x, y, n):
-    v_string = str(var) + ' =' +  str(val).split('>",')[1][:-1]
-    if str(var) == '__return__':
-        drawRect(x, y + n * 20, len(v_string) * 5 + 30, 15, fill=None, border='white')
+    if len(new_list.get_list()) == 0:
+        drawRect(x + app.letter_space * len(var) + 100, y, 20, 20, fill=None, align='left',border=app.list_color)
     else:
-        drawRect(x, y + n * 20, len(v_string) * 5 + 10, 15, fill=None, border='white')
-    drawLabel(v_string, x + 5, y + n * 20 + 7, align='left', fill = 'white')
+        drawRect(x + app.letter_space * len(var) + 100, y, len(new_list.get_list()) * 20, 20, fill=None, align='left',border=app.list_color)
+    for i in range(len(new_list.get_list())):
+        drawLabel(str(new_list.get_list()[i]), x + app.letter_space * len(var) + 100 + 10 + i * 20, y, fill='white', font='monospace', size=20)
+        drawLabel(str(i), x + app.letter_space * len(var) + 100 + 10 + i * 20, y - 20, fill='white', font='monospace', size=12)
+    
+def drawVar(app, var, val, x, y):
+    v = var_obj.var_obj(var, x, y, val)
+    app.vars.add(v)
+
+    drawRect(x - 5, y, app.letter_space  * len(var) + 10, app.line_space + 10, align='left', fill=None, border=app.prim_color)
+    drawLabel(var, x, y, size=20, align = 'left', fill='white', font = 'monospace')
+
+    drawLabel(val[1], x + app.letter_space * len(var) + 100, y, size=20, fill='white', font='monospace')
+    # v_string = str(var) + ' =' +  str(val).split('>",')[1][:-1]
+    # if str(var) == '__return__':
+    #     drawRect(x, y + n * 20, len(v_string) * 5 + 30, 15, fill=None, border='white')
+    # else:
+    #     drawRect(x, y + n * 20, len(v_string) * 5 + 10, 15, fill=None, border='white')
+    # drawLabel(v_string, x + 5, y + n * 20 + 7, align='left', fill = 'white')
 
 def lineUpdate(app, dir):
     if app.line_index + dir >= 0 and app.line_index + dir < len(app.lines):
@@ -207,6 +249,9 @@ def onMouseDrag(app, mouseX, mouseY):
         app.input_width = mouseX
         app.visual_width, app.visual_height = app.frame_width - app.input_width, app.frame_height - app.topbar_height
         app.buttonbox_width, app.buttonbox_height = app.input_width, 100
+        app.output_x, app.output_y = app.input_width + 50, app.topbar_height + 500
+        app.globals_x, app.globals_y = app.input_width + 50, app.topbar_height + 70
+        app.locals_x, app.locals_y = app.input_width + 50, app.topbar_height + 330
 
 def onMousePress(app, mouseX, mouseY):
     print(str(mouseX) + ', ' + str(mouseY))
@@ -218,15 +263,21 @@ def onMousePress(app, mouseX, mouseY):
     # Generate and Reset buttons
     if mouseX > app.buttonbox_width // 2 + 10 and mouseX < app.buttonbox_width // 2 + 170 and mouseY > app.frame_height - app.buttonbox_height + 25 and mouseY < app.frame_height - app.buttonbox_height + 70:
         app.trace = test.test_tracing(app.code)
+        print(app.trace)
         app.edit_mode = False
         app.visual_mode = True
         loadLines(app)
         # print('clicked')
     elif mouseX > app.buttonbox_width // 2 - 195 and mouseX < app.buttonbox_width // 2 - 30 and mouseY > app.frame_height - app.buttonbox_height + 25 and mouseY < app.frame_height - app.buttonbox_height + 70:
         app.code = ''
-        app.text_cursor_x, app.text_cursor_y = 60, 110
+        app.code_lines = ['']
+        app.code_lines_index = 0
+        app.text_cursor_x, app.text_cursor_y = 55, 100
         app.edit_mode = True
         app.visual_mode = False
+        app.existing_objects = {}
+        app.vars = set()
+        app.lines = []
         # print('click')
     if app.edit_mode:
         pass
@@ -240,30 +291,46 @@ def onMouseMove(app, mouseX, mouseY):
 def onKeyPress(app, key):
     if app.edit_mode:
         if key == 'backspace':
-            app.code = app.code[:-1]
-            app.text_cursor_x -= 12
+            if app.code_lines[0] != '':
+                app.code = app.code[:-1]
+                if app.code_lines[app.code_lines_index] != '':
+                    app.code_lines[app.code_lines_index] = app.code_lines[app.code_lines_index][:-1]
+                    app.text_cursor_x -= app.letter_space
+                else:
+                    app.code_lines.pop()
+                    app.code_lines_index -= 1
+                    app.text_cursor_y -= app.line_space
+                    app.text_cursor_x = len(app.code_lines[app.code_lines_index]) * app.letter_space + 60
         elif key == 'space':
             app.code += ' '
-            app.text_cursor_x += 12
+            app.code_lines[app.code_lines_index] += ' '
+            app.text_cursor_x += app.letter_space
         elif key == 'enter':
             app.code += '\n'
-            app.text_cursor_y += 20
-            app.text_cursor_x = 60
+            app.code_lines_index += 1
+            app.code_lines.append('')
+            app.text_cursor_y += app.line_space
+            app.text_cursor_x = 55
         elif key == 'tab':
             app.code += '\t'
-            app.text_cursor_x += 12
+            app.code_lines[app.code_lines_index] += '  '
+            app.text_cursor_x += app.letter_space * 2
         else:
             app.code += key
-            app.text_cursor_x += 12
+            app.code_lines[app.code_lines_index] += key
+            app.text_cursor_x += app.letter_space
     else:
         if key == 'right':
             lineUpdate(app, 1)
+            updateStackState(app)
         elif key == 'left':
             lineUpdate(app, -1)
+            updateStackState(app)
         if len(app.lines) > 0:
             app.line_to_highlight = app.lines[app.line_index]['line']
 
 def onStep(app):
+    app.drawn = True
     if app.setting_move:
         app.settings_angle += 4
     
