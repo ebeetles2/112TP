@@ -1,12 +1,13 @@
 
 class list_obj():
-    def  __init__(self, lst, x, y, idn):
-        self.list = lst
+    def  __init__(self, lst, x, y, idn, scope):
+        self.lst = lst
         self.x = x
         self.y = y
-        self.id = idn
+        self.idn = idn
+        self.scope = scope
 
-    def get_list(self):
+    def get_assignment(self):
         return self.lst
     
     def get_id(self):
@@ -17,3 +18,9 @@ class list_obj():
     
     def get_y(self):
         return self.y
+    
+    def get_scope(self):
+        return self.scope
+    
+    def __str__(self):
+        return f"List: {self.lst}, ID: {self.idn}"

@@ -1,4 +1,5 @@
 from cmu_graphics import *
+import copy
 import test
 import json
 import list_obj
@@ -38,20 +39,33 @@ def onAppStart(app):
     app.stepsPerSecond = 2
 
     app.code_x, app.code_y = 55,102
-    app.code = ''
+    app.code = '''
+def listSum(numbers):
+    if not numbers:
+        return 0
+    else:
+	    (f, rest) = numbers
+	    return f + listSum(rest)
+	
+myList = (1, (2, (3, None)))
+total = listSum(myList)'''
     app.code_lines = ['']
     app.code_lines_index = 0
 
     app.trace = ''
 
-    app.indent = 15
+    app.indent = 25
     app.line_to_highlight = 1
     app.user_input_json = None
     app.line_number = 0
     app.line_index = 0
     app.lines = []
     app.current_line = None
+
     app.existing_objects = {}
+    app.existing_objects_stack = []
+    app.vars_stack = []
+
     app.data_dict = {
         'line' : None,
         'event' : handleEvent,
@@ -60,9 +74,6 @@ def onAppStart(app):
         'stack_locals' : handleLocal,
         'stdout' : handleStdout
     }
-
-    app.obj_ids = {}
-    app.pointers = {}
 
     app.visual_dict = {
         "<class 'list'>" : drawList,
@@ -76,7 +87,8 @@ def onAppStart(app):
 
     app.letter_space = 12
     app.line_space = 20
-    app.vars = set()
+    app.unique_vars = set()
+    app.vars = []
 
 def redrawAll(app):
     drawRect(0, 0, app.topbar_width, app.topbar_height, fill=app.dark_purple)
@@ -99,6 +111,7 @@ def redrawAll(app):
     drawLabel('GENERATE', app.buttonbox_width // 2 + 90, app.frame_height - app.buttonbox_height + 50, align='center', size=20, fill=app.dark_purple, bold=True)
 
     drawLabel('PyViz', app.topbar_width // 2, app.topbar_height - 43, fill=app.grayish, size=50, font='monospace', bold=True)
+    drawCode(app)
 
     drawLine(app.text_cursor_x, app.text_cursor_y, app.text_cursor_x, app.text_cursor_y + 20, visible=app.text_cursor_blink, fill='white')
 
@@ -106,7 +119,7 @@ def redrawAll(app):
         drawLabel(app.code_lines[i], app.code_x, app.code_y + i * 20, fill='white', size=20, align = 'top-left', font='monospace')
     # drawLabel(app.code, app.code_x, app.code_y, fill='white', size=20, align='top-left', font='monospace')
 
-    if app.visual_mode and not app.drawn:
+    if app.visual_mode:
         drawLabel('Globals:', app.input_width + 50, app.topbar_height + 30, align='left', fill='white', size=16)
         drawLabel('Output:', app.input_width + 50, app.topbar_height + 500, align='left', fill='green', size=16)
         # drawCode(app)
@@ -117,22 +130,45 @@ def drawCode(app):
     i = 1
     for line in app.code.splitlines():
         # print(repr(line))
-        line_color = 'black'
+        line_color = 'white'
         if i == app.line_to_highlight:
             line_color = 'green'
-        drawLabel(line, 55, 110 + (i-1) * app.indent, size=20, align='left', fill = 'white')
+        drawLabel(line, 55, 100 + (i-1) * app.indent, size=20, align='left', fill = line_color)
         i += 1
 
 def drawVisual(app):
-    if app.current_line == None: return
-    for data in app.current_line:
-        data_value = app.current_line[data]
-        if data == 'globals':
-            for var in data_value:
-                app.visual_dict[data_value](var, data_value[var][1], app.globals_x, app.globals_y)
-        elif data == 'locals':
-            for var in data_value:
-                app.visual_dict[data_value](var, data_value[var][1], app.locals_x, app.locals_y)
+    if app.existing_objects_stack == []: return
+    # print(app.existing_objects_stack)
+    print(app.vars_stack[-1])
+    for v in app.vars_stack[-1]:
+        type_val = v.get_type()
+        val_scope = v.get_scope()
+        x = v.get_x()
+        y = v.get_y()
+        if (str(type_val) == "<class 'str'>" or str(type_val) == "<class 'int'>"):
+            drawVar(app, v.get_name(), v.get_assignment(), x, y)
+        else:
+            drawVar(app, v.get_name(), None, x, y)
+        drawPointer(app, v)
+
+    current_existing_objects = app.existing_objects_stack[-1]
+    for idn in current_existing_objects:
+        obj = current_existing_objects[idn]
+        obj_scope = obj.get_scope()
+        x = obj.get_x()
+        y = obj.get_y()
+        app.visual_dict[str(type(obj.get_assignment()))](app, obj, x, y)
+        # for idn in obj:
+        #     app.visual_dict[obj[][0]](app, obj[idn].get_name(), obj[idn].get_list(), app.globals_x, app.globals_y)
+    # if app.current_line == None: return
+    # for data in app.current_line:
+    #     data_value = app.current_line[data]
+    #     if data == 'globals':
+    #         for var in data_value:
+    #             app.visual_dict[data_value[var][0]](app, var, data_value[var][1], app.globals_x, app.globals_y)
+    #     elif data == 'locals':
+    #         for var in data_value:
+    #             app.visual_dict[data_value[var][0]](app, var, data_value[var][1], app.locals_x, app.locals_y)
 
 def updateStackState(app):
     if app.current_line == None: return
@@ -159,9 +195,15 @@ def handleGlobal(app, globals):
         type_val = val[0]
         # print(type_val)
         if (type_val == "<class 'str'>" or type_val == "<class 'int'>"):
-            drawVar(app, var, val, app.globals_x, app.globals_y, i)
+            v = var_obj.var_obj(var, app.globals_x, app.globals_y + (i-1) * 40, val[1], 'global')
+            if v not in app.unique_vars:
+                app.vars.append(v)
+                app.unique_vars.add(v)
+            else:
+                app.vars.remove(v)
+                app.vars.append(v)
         elif (type_val == "<class 'list'>"):
-            handleList(app, var, val[1], app.globals_x, app.globals_y, val[2])
+            handleList(app, var, val[1], app.globals_x, app.globals_y +  + (i-1) * 40, val[2], 'global')
             # drawList(app, var, val[1], app.globals_x, app.globals_y, val[2])
 
         i += 1
@@ -169,19 +211,19 @@ def handleGlobal(app, globals):
 def handleLocal(app, locals):
     if (len(locals) == 0):
         return
-    drawLabel(locals[0][0], app.locals_x, app.locals_y, align='left', size=16, fill='white')
     i = 1
     for var in locals[0][1]:
-        print(var)
+        # print(var)
         val = locals[0][1][var]
         type_val = val[0]
-        # print(type_val)
         if (type_val == "<class 'str'>" or type_val == "<class 'int'>"):
-            drawVar(app, var, locals[0][1][var], app.locals_x, app.locals_y, i)
+            v = var_obj.var_obj(var, app.locals_x, app.locals_y, val[1], 'local')
+            if v not in app.unique_vars:
+                app.vars.append(v)
+                app.unique_vars.add(v)
         elif (type_val == "<class 'list'>"):
-            handleList(app, var, val[1], app.locals_x, app.locals_y, val[2])
+            handleList(app, var, val[1], app.locals_x, app.locals_y, val[2], 'local')
             # drawList(app, var, val[1], app.locals_x, app.locals_y, val[2])
- 
         i += 1
 
 def handleStdout(app, stdout):
@@ -189,42 +231,58 @@ def handleStdout(app, stdout):
         return
     drawLabel(stdout, app.output_x + 40, app.output_y, fill = 'white')
 
-def handleList(app, var, lst, x, y, idn):
-    new_list = list_obj.list_obj(lst, x, y, idn)
-    v = var_obj.var_obj(var, x, y, new_list)
+def handleList(app, var, lst, x, y, idn, scope):
+    new_list = list_obj.list_obj(lst, x + 300, y, idn, scope)
+    v = var_obj.var_obj(var, x, y, new_list, scope)
+    if v not in app.unique_vars:
+        app.vars.append(v)
+        app.unique_vars.add(v)
     if idn not in app.existing_objects:
         app.existing_objects[idn] = new_list
-        return v
-    else:
-        return app.existing_objects[idn]
+
+def handleSet(app, var, lst, x, y, idn, scope):
+    new_list = list_obj.list_obj(lst, x + 300, y, idn, scope)
+    v = var_obj.var_obj(var, x, y, new_list, scope)
+    if v not in app.unique_vars:
+        app.vars.append(v)
+        app.unique_vars.add(v)
+    if idn not in app.existing_objects:
+        app.existing_objects[idn] = new_list
+
+def handleDict(app, var, lst, x, y, idn, scope):
+    new_list = list_obj.list_obj(lst, x + 300, y, idn, scope)
+    v = var_obj.var_obj(var, x, y, new_list, scope)
+    if v not in app.unique_vars:
+        app.vars.append(v)
+        app.unique_vars.add(v)
+    if idn not in app.existing_objects:
+        app.existing_objects[idn] = new_list
 
 def drawPointer(app, var_obj):
     drawLine(var_obj.get_x() + len(var_obj.get_name()) * app.letter_space + 10, var_obj.get_y(), var_obj.get_x() + len(var_obj.get_name()) * app.letter_space + 90, var_obj.get_y(), fill='white')
 
-def drawList(app, var, v, x, y):
+def drawList(app, v, x, y):
     # new_list = list_obj.list_obj(list, x, y, id)
     # v = var_obj.var_obj(var, x, y, new_list)
     # print(id(list))
-    new_list = v.get_list()
-    drawRect(x - 5, y, app.letter_space  * len(var) + 10, app.line_space + 10, align='left', fill=None, border=app.prim_color)
-    drawLabel(var, x, y, size=20, align = 'left', fill='white', font = 'monospace')
-
-    if len(new_list.get_list()) == 0:
-        drawRect(x + app.letter_space * len(var) + 100, y, 20, 20, fill=None, align='left',border=app.list_color)
+    new_list = v.get_assignment()
+    # drawRect(x - 5, y, app.letter_space  * len(var) + 10, app.line_space + 10, align='left', fill=None, border=app.prim_color)
+    # drawLabel(var, x, y, size=20, align = 'left', fill='white', font = 'monospace')
+    
+    if len(new_list) == 0:
+        drawRect(x, y, 20, 20, fill=None, align='left',border=app.list_color)
     else:
-        drawRect(x + app.letter_space * len(var) + 100, y, len(new_list.get_list()) * 20, 20, fill=None, align='left',border=app.list_color)
-    for i in range(len(new_list.get_list())):
-        drawLabel(str(new_list.get_list()[i]), x + app.letter_space * len(var) + 100 + 10 + i * 20, y, fill='white', font='monospace', size=20)
-        drawLabel(str(i), x + app.letter_space * len(var) + 100 + 10 + i * 20, y - 20, fill='white', font='monospace', size=12)
+        drawRect(x, y, len(new_list) * 20, 20, fill=None, align='left',border=app.list_color)
+    for i in range(len(new_list)):
+        drawLabel(str(new_list[i]), x + 10 + i * 20, y, fill='white', font='monospace', size=20)
+        drawLabel(str(i), x + 10 + i * 20, y - 20, fill='white', font='monospace', size=12)
     
 def drawVar(app, var, val, x, y):
-    v = var_obj.var_obj(var, x, y, val)
-    app.vars.add(v)
-
     drawRect(x - 5, y, app.letter_space  * len(var) + 10, app.line_space + 10, align='left', fill=None, border=app.prim_color)
     drawLabel(var, x, y, size=20, align = 'left', fill='white', font = 'monospace')
-
-    drawLabel(val[1], x + app.letter_space * len(var) + 100, y, size=20, fill='white', font='monospace')
+    # print(val)
+    if val != None:
+        drawLabel(val, x + app.letter_space * len(var) + 100, y, size=20, fill='white', font='monospace')
     # v_string = str(var) + ' =' +  str(val).split('>",')[1][:-1]
     # if str(var) == '__return__':
     #     drawRect(x, y + n * 20, len(v_string) * 5 + 30, 15, fill=None, border='white')
@@ -276,7 +334,8 @@ def onMousePress(app, mouseX, mouseY):
         app.edit_mode = True
         app.visual_mode = False
         app.existing_objects = {}
-        app.vars = set()
+        app.vars = []
+        app.unique_vars = set()
         app.lines = []
         # print('click')
     if app.edit_mode:
@@ -320,12 +379,30 @@ def onKeyPress(app, key):
             app.code_lines[app.code_lines_index] += key
             app.text_cursor_x += app.letter_space
     else:
+        # for ob in app.existing_objects:
+        #     print(app.existing_objects[ob])
+        # for v in app.vars:
+        #     print(str(v))
+        # print(len(app.vars))
         if key == 'right':
-            lineUpdate(app, 1)
-            updateStackState(app)
+            if app.line_index < len(app.lines) - 1:
+                lineUpdate(app, 1)
+                updateStackState(app)
+                existing_objects_copy = copy.copy(app.existing_objects)
+                app.existing_objects_stack.append(existing_objects_copy)
+                vars_copy = copy.copy(app.vars)
+                app.vars_stack.append(vars_copy)
         elif key == 'left':
-            lineUpdate(app, -1)
-            updateStackState(app)
+            if app.line_index > 0:
+                lineUpdate(app, -1)
+                app.vars = []
+                app.unique_vars = set()
+                app.existing_objects = {}
+                updateStackState(app)
+                if len(app.existing_objects_stack) > 0:
+                    app.existing_objects_stack.pop()
+                if len(app.vars_stack) > 0:
+                    app.vars_stack.pop()
         if len(app.lines) > 0:
             app.line_to_highlight = app.lines[app.line_index]['line']
 

@@ -1,15 +1,19 @@
 class var_obj():
-    def  __init__(self, name, x, y, assignment):
+    def  __init__(self, name, x, y, assignment, scope):
         self.name = name
         self.x = x
         self.y = y
         self.assignment = assignment
+        self.scope = scope
 
     def get_name(self):
         return self.name
 
     def get_assignment(self):
         return self.assignment
+    
+    def get_type(self):
+        return type(self.assignment)
     
     def get_x(self):
         return self.x
@@ -25,3 +29,15 @@ class var_obj():
 
     def change_assignment(self, assignment):
         self.assignment = assignment
+
+    def get_scope(self):
+        return self.scope
+
+    def __str__(self):
+        return f"Object: {self.name}, Assignment: {self.assignment}"
+    
+    def __eq__(self, other):
+        return self.name == other.name
+    
+    def __hash__(self):
+        return hash(self.name)
