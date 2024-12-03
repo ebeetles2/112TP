@@ -30,9 +30,10 @@ def onAppStart(app):
 
     app.topbar_width, app.topbar_height = app.frame_width, 85
     app.input_width, app.input_height = 480, app.frame_height - app.topbar_height
+    app.visual_x, app.visual_y = app.input_width, app.topbar_height
     app.text_x, app.text_y = 0, app.topbar_height
-    app.text_width, app.text_height = 10000, 10000
-    app.visual_width, app.visual_height = 10000, 10000
+    app.text_width, app.text_height = 1000, 10000
+    app.visual_width, app.visual_height = 1000, 10000
 
     app.buttonbox_width, app.buttonbox_height = app.input_width, 100
     app.help_x, app.help_y = 110, 20
@@ -50,7 +51,7 @@ def onAppStart(app):
 
     app.stepsPerSecond = 2
 
-    app.code_x, app.code_y = app.text_x + 55, app.text_y + 30
+    app.code_x, app.code_y = app.text_x + 55, app.text_y + 17
 
 #     app.code = '''
 # def test(a):
@@ -136,19 +137,20 @@ ans = merge_sort(my_list)'''
     app.unique_vars = set()
     app.vars = []
 
-    app.frames_x, app.frames_y = app.input_width + 160, app.topbar_height + 40
-    app.obj_x, app.obj_y = app.input_width + 350, app.topbar_height + 50
+    app.frames_x, app.frames_y = app.visual_x + 160, app.visual_y + 40
+    app.obj_x, app.obj_y = app.visual_x + 350, app.visual_y + 50
 
     app.labels = []
 
     app.code_scroll = False
+    app.visual_scroll = False
 
 def redrawAll(app):
     drawRect(0, app.text_y, app.text_width, app.text_height, fill=app.dark_purple)
-    drawCode(app)
+    if app.visual_mode:
+        drawCode(app)
     drawRect(0, app.topbar_height, app.numberline_x, app.frame_height - app.topbar_height - app.buttonbox_height, fill=app.dark_purple)
-    drawRect(0, 0, app.topbar_width, app.topbar_height, fill=app.dark_purple)
-    drawRect(app.input_width, app.topbar_height, app.visual_width, app.visual_height, fill=app.dark_purple)
+    drawRect(app.visual_x, app.visual_y, app.visual_width, app.visual_height, fill=app.dark_purple)
     drawRect(0, app.frame_height - app.buttonbox_height, app.buttonbox_width, app.buttonbox_height, fill = app.dark_purple)
 
     drawLine(0, app.topbar_height, app.topbar_width, app.topbar_height, fill=app.line_purple, lineWidth=5)
@@ -156,16 +158,10 @@ def redrawAll(app):
     drawLine(app.numberline_x, app.topbar_height, app.numberline_x, app.frame_height - app.buttonbox_height, fill=app.line_purple, lineWidth=5)
     drawLine(0, app.frame_height - app.buttonbox_height, app.buttonbox_width, app.frame_height - app.buttonbox_height, fill = app.line_purple, lineWidth = 5)
 
-    settings = Image.open('settings.png')
-    drawImage(CMUImage(settings), app.settings_x, app.settings_y, width = app.settings_size, height=app.settings_size, rotateAngle=app.settings_angle, align='center')  
-    # drawImage('settings.png', app.settings_x, app.settings_y, width = app.settings_size, height=app.settings_size, rotateAngle=app.settings_angle, align='center')
-    drawImage('help.png', app.help_x, app.help_y)
     drawImage('button.png', app.buttonbox_width // 2 - 110, app.frame_height - app.buttonbox_height + 50, align='center')
     drawLabel('RESET', app.buttonbox_width // 2 - 110, app.frame_height - app.buttonbox_height + 50, align='center', size=20, fill=app.dark_purple, bold=True)
     drawImage('button.png', app.buttonbox_width // 2 + 90, app.frame_height - app.buttonbox_height + 50, align='center')
     drawLabel('GENERATE', app.buttonbox_width // 2 + 90, app.frame_height - app.buttonbox_height + 50, align='center', size=20, fill=app.dark_purple, bold=True)
-
-    drawLabel('PyViz', app.topbar_width // 2, app.topbar_height - 43, fill=app.grayish, size=50, font='monospace', bold=True)
 
     drawLine(app.text_cursor_x, app.text_cursor_y, app.text_cursor_x, app.text_cursor_y + 20, visible=app.text_cursor_blink, fill='white')
 
@@ -176,6 +172,13 @@ def redrawAll(app):
         for i in range(len(app.code_lines)):
             drawLabel(app.code_lines[i], app.code_x, app.code_y + i * 20, fill='white', size=20, align = 'top-left', font='monospace')
     # drawLabel(app.code, app.code_x, app.code_y, fill='white', size=20, align='top-left', font='monospace')
+
+    drawRect(0, 0, app.topbar_width, app.topbar_height, fill=app.dark_purple)
+    settings = Image.open('settings.png')
+    drawImage(CMUImage(settings), app.settings_x, app.settings_y, width = app.settings_size, height=app.settings_size, rotateAngle=app.settings_angle, align='center')  
+    # drawImage('settings.png', app.settings_x, app.settings_y, width = app.settings_size, height=app.settings_size, rotateAngle=app.settings_angle, align='center')
+    drawImage('help.png', app.help_x, app.help_y)
+    drawLabel('PyViz', app.topbar_width // 2, app.topbar_height - 43, fill=app.grayish, size=50, font='monospace', bold=True)
 
 def drawCode(app):
     if app.code == '': return
@@ -367,6 +370,11 @@ def onMouseMove(app, mouseX, mouseY):
     else:
         app.code_scroll = False
 
+    if mouseX > app.input_width and mouseX < app.frame_width and mouseY > app.topbar_height and mouseY < app.frame_height:
+        app.visual_scroll = True
+    else:
+        app.visual_scroll = False
+
 def onKeyPress(app, key):
     if app.edit_mode:
         if key == 'backspace':
@@ -434,6 +442,14 @@ def onMouseWheel(app, dx, dy):
         app.text_y += dy
     if app.text_x - dx < 20 and app.code_scroll:
         app.text_x -= dx
+
+    if app.visual_y - dy < app.topbar_height and app.visual_scroll:
+        app.visual_y -= dy
+    # if app.visual_x - dx > app.input_width and app.visual_scroll:
+    #     app.visual_x += dx
+        
+    app.frames_x, app.frames_y = app.visual_x + 160, app.visual_y + 40
+    app.obj_x, app.obj_y = app.visual_x + 350, app.visual_y + 50
     app.code_x, app.code_y = app.text_x + 55, app.text_y + 30
 def onStep(app):
     app.drawn = True
