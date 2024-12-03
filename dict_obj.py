@@ -1,7 +1,7 @@
 
-class list_obj():
-    def  __init__(self, lst, idn):
-        self.lst = lst
+class dict_obj():
+    def  __init__(self, dct, idn):
+        self.dct = dct
         self.idn = idn
         # self.x = x
         # self.y = y
@@ -9,7 +9,7 @@ class list_obj():
         # self.scope = scope
 
     def get_assignment(self):
-        return self.lst
+        return self.dct
     
     def get_id(self):
         return self.idn
@@ -27,7 +27,7 @@ class list_obj():
         return self.idn
     
     def __str__(self):
-        return f"List: {self.lst}, ID: {self.idn}"
+        return f"Dict: {self.dct}, ID: {self.idn}"
     
     def __eq__(self, other):
         return self.idn == other.idn

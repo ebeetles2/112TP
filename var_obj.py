@@ -1,10 +1,10 @@
 class var_obj():
-    def  __init__(self, name, x, y, assignment, scope):
+    def  __init__(self, name, assignment):
         self.name = name
-        self.x = x
-        self.y = y
+        # self.x = x
+        # self.y = y
         self.assignment = assignment
-        self.scope = scope
+        # self.scope = scope
 
     def get_name(self):
         return self.name
