@@ -1,21 +1,14 @@
 from cmu_graphics import *
-import copy
 import test
 import json
-import list_obj
-import var_obj
 import frame_stack
-import frame_obj
 from PIL import Image
 import label
 from cmu_graphics import pygameEvent
 
 # TODO 
-# y is off
-# scrollable visuals
-# primitive next to var
 # margin around text and its box
-# highlight lines of current function
+#loading code
 def onAppStart(app):
     app.frame_width, app.frame_height = 1200, 800
     app.dark_purple = color=rgb(32,26,35)
@@ -23,6 +16,7 @@ def onAppStart(app):
     app.onyx = color=rgb(57, 62, 65)
     app.grayish = color=rgb(219, 205, 198)
     app.light_purple = color=rgb(209,177,200)
+    app.orange = color=rgb(255, 92, 0)
 
     app.prim_color = color=rgb(255, 203, 252)
     app.list_color = color=rgb(87, 98, 255)
@@ -150,6 +144,7 @@ def redrawAll(app):
     if app.visual_mode:
         drawCode(app)
     drawRect(0, app.topbar_height, app.numberline_x, app.frame_height - app.topbar_height - app.buttonbox_height, fill=app.dark_purple)
+    
     drawRect(app.visual_x, app.visual_y, app.visual_width, app.visual_height, fill=app.dark_purple)
     drawRect(0, app.frame_height - app.buttonbox_height, app.buttonbox_width, app.buttonbox_height, fill = app.dark_purple)
 
@@ -195,15 +190,22 @@ def draw_objects(app, frames, x, y):
     # print('drawing')
     objects = {}
 
+    i = 0
     for obj in frames.get_objects():
+        
+        if i > 0:
+            y += 120
         draw_object(app, obj, objects, x, y)
-        y += 120
-
+        i += 1
     for func in list(reversed(frames.get_stack())):
+        i = 0
         for obj in func.get_objects():
+            
+            if i > 0:
+                y += 60
             draw_object(app, obj, objects, x, y)
-            y += 60
-    y -= 60
+            i += 1
+            
     return objects
 
 def draw_object(app, obj, objects, x, y):
@@ -227,11 +229,14 @@ def draw_object(app, obj, objects, x, y):
     objects[obj_id] = coords
 
 def draw_frames(app, frames, objects, x, y):
-    y = draw_frame(app, 'global', frames.get_vars(), objects, x, y)
+    y = draw_frame(app, 'global', frames.get_vars(), objects, x, y, False)
     # y += 70
     for func in list(reversed(frames.get_stack())):
+        current = False
+        if func == frames.get_stack()[0]:
+            current = True
         y += 50
-        y = draw_frame(app, func.get_name(), func.get_vars(), objects, x, y)
+        y = draw_frame(app, func.get_name(), func.get_vars(), objects, x, y, current)
 
 def is_primitive(t):
     if t == "<class 'int'>" or t == "<class 'str'>" or t == "<class 'float'>":
@@ -239,7 +244,7 @@ def is_primitive(t):
     else:
         return False
     
-def draw_frame(app, func, vars, objects, x, y):
+def draw_frame(app, func, vars, objects, x, y, current):
     drawRect(x, y, len(func) * 12, 25, fill = None, align = 'right', border = app.prim_color)
     l = label.label(func, x, y)
     draw_name(app, l)
@@ -250,25 +255,30 @@ def draw_frame(app, func, vars, objects, x, y):
         y += 20
         var_type = str(type(var.get_assignment()))
         var_val = var.get_assignment()
-        l = label.label(var.get_name(), x, y)
-        draw_name(app, l)
+
+        pointer_color = 'white'
+        pointer_thickness = 1
+        if current:
+            pointer_color = app.dict_color
+            pointer_thickness = 2
         if is_primitive(var_type):
-            l = label.label(var_val, x + 300, y)
-            draw_value(app, l)
-            draw_pointer(app, (x + 300, y), x, y)
+            draw_value(app, var.get_name(), var_val, x, y)
+            # draw_pointer(app, (x + 300, y), x, y, pointer_color, pointer_thickness)
         else:
+            l = label.label(var.get_name(), x, y)
+            draw_name(app, l)
             var_id = var.get_assignment().get_id()
-            draw_pointer(app, objects[var_id], x, y)
+            draw_pointer(app, objects[var_id], x, y, pointer_color, pointer_thickness)
     return y
 
 def draw_name(app, name):
     drawLabel(str(name.get_label()), name.get_x(), name.get_y(), fill = 'white', font = 'monospace', size = 20, align = 'right')
 
-def draw_value(app, val):
-    drawLabel(str(val.get_label()), val.get_x(), val.get_y(), fill='white', font = 'monospace', size=20, align='left')
+def draw_value(app, name, val, x, y):
+    drawLabel(str(name) + ' : ' + str(val), x, y, fill=app.orange, font = 'monospace', size=20, align='right')
 
-def draw_pointer(app, coords, x, y):
-    drawLine(x + 10, y, coords[0] - 10, coords[1], fill='white', lineWidth = 1)
+def draw_pointer(app, coords, x, y, pointer_color, pointer_thickness):
+    drawLine(x + 10, y, coords[0] - 10, coords[1], fill = pointer_color, lineWidth = pointer_thickness)
 
 def draw_list(app, lst, x, y):
     if len(lst) == 0:
@@ -443,10 +453,8 @@ def onMouseWheel(app, dx, dy):
     if app.text_x - dx < 20 and app.code_scroll:
         app.text_x -= dx
 
-    if app.visual_y - dy < app.topbar_height and app.visual_scroll:
+    if app.visual_y - dy < app.topbar_height + 20 and app.visual_scroll:
         app.visual_y -= dy
-    # if app.visual_x - dx > app.input_width and app.visual_scroll:
-    #     app.visual_x += dx
         
     app.frames_x, app.frames_y = app.visual_x + 160, app.visual_y + 40
     app.obj_x, app.obj_y = app.visual_x + 350, app.visual_y + 50
