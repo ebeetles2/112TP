@@ -5,7 +5,6 @@ import list_obj
 import dict_obj
 import set_obj
 import tuple_obj
-import copy
 
 class frame_stack:
     def __init__(self, trace):
