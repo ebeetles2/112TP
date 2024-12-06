@@ -85,7 +85,7 @@ class frame_stack:
         for var in globals:
             val = globals[var]
             type_val = val[0]
-            if (type_val == "<class 'str'>" or type_val == "<class 'int'>"):
+            if (type_val == "<class 'str'>" or type_val == "<class 'int'>" or type_val == "<class 'float'>" or type_val == "<class 'bool'>"):
                 v = var_obj.var_obj(var, val[1])
                 self.vars.append(v)
                 if val[1] not in self.unique_objects:

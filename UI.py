@@ -194,28 +194,22 @@ def draw_line_numbers(app):
 def draw_objects(app, frames, x, y):
     objects = {}
 
-    i = 0
     for obj in frames.get_objects():
-        
-        if i > 0:
+        inc = draw_object(app, obj, objects, x, y)
+        if inc:
             y += 120
-        draw_object(app, obj, objects, x, y)
-        i += 1
     for func in list(reversed(frames.get_stack())):
         i = 0
         for obj in func.get_objects():
-            
-            if i > 0:
+            inc = draw_object(app, obj, objects, x, y)
+            if inc:
                 y += 60
-            draw_object(app, obj, objects, x, y)
-            i += 1
-            
     return objects
 
 def draw_object(app, obj, objects, x, y):
     obj_type = str(type(obj))
     if is_primitive(obj_type):
-        return
+        return False
     obj_id = obj.get_id()
     if obj_id in objects:
         return
@@ -231,6 +225,7 @@ def draw_object(app, obj, objects, x, y):
         coords = draw_set(app, obj_val, x, y)
     
     objects[obj_id] = coords
+    return True
 
 def draw_frames(app, frames, objects, x, y):
     y = draw_frame(app, 'global', frames.get_vars(), objects, x, y, False)
@@ -242,7 +237,7 @@ def draw_frames(app, frames, objects, x, y):
         y = draw_frame(app, func.get_name(), func.get_vars(), objects, x, y, current)
 
 def is_primitive(t):
-    if t == "<class 'int'>" or t == "<class 'str'>" or t == "<class 'float'>":
+    if t == "<class 'int'>" or t == "<class 'str'>" or t == "<class 'float'>" or t == "<class 'bool'>":
         return True
     else:
         return False
@@ -386,6 +381,8 @@ def reset_pressed(app, mouseX, mouseY):
     return False
 
 def reset(app):
+    app.text_x, app.text_y = 0, app.topbar_height
+    app.code_x, app.code_y = app.text_x + 55, app.text_y + 17
     app.code = ''
     app.code_lines = ['']
     app.code_lines_index = 0
