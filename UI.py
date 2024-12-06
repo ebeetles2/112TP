@@ -146,6 +146,8 @@ def draw_panels(app):
     drawRect(0, app.topbar_height, app.numberline_x, app.frame_height - app.topbar_height - app.buttonbox_height, fill=app.bg_color)
     
     drawRect(app.visual_x, app.visual_y, app.visual_width, app.visual_height, fill=app.bg_color)
+    draw_line_numbers(app)
+    drawLine(app.text_cursor_x, app.text_cursor_y, app.text_cursor_x, app.text_cursor_y + 20, visible=app.text_cursor_blink, fill=app.text_color)
     drawRect(0, app.frame_height - app.buttonbox_height, app.buttonbox_width, app.buttonbox_height, fill = app.bg_color)
 
     drawLine(0, app.topbar_height, app.topbar_width, app.topbar_height, fill=app.line_purple, lineWidth=5)
@@ -158,7 +160,6 @@ def draw_panels(app):
     drawImage('button.png', app.buttonbox_width // 2 + 90, app.frame_height - app.buttonbox_height + 50, align='center')
     drawLabel('GENERATE', app.buttonbox_width // 2 + 90, app.frame_height - app.buttonbox_height + 50, align='center', size=20, fill=app.bg_color, bold=True)
 
-    drawLine(app.text_cursor_x, app.text_cursor_y, app.text_cursor_x, app.text_cursor_y + 20, visible=app.text_cursor_blink, fill=app.text_color)
 
 def draw_settings(app):
     color_button = None
@@ -182,6 +183,13 @@ def draw_code(app):
             line_color = 'green'
         drawLabel(line, app.code_x, app.code_y + (i-1) * 20, size=20, align='top-left', fill = line_color, font='monospace')
         i += 1
+
+def draw_line_numbers(app):
+    for i in range(1, len(app.code_lines) + 1):
+        line_color = app.text_color
+        if i == app.line_to_highlight:
+            line_color = 'green'
+        drawLabel(str(i), 25, app.code_y + (i-1) * 20, size=20, align='top-right', fill = line_color, font='monospace')
 
 def draw_objects(app, frames, x, y):
     objects = {}
@@ -389,6 +397,7 @@ def reset(app):
     app.unique_vars = set()
     app.lines = []
     app.line_to_highlight = 1
+    app.line_index = 0
 
 def editor_pressed(app, mouseX, mouseY):
     if mouseX > app.numberline_x and mouseX < app.input_width and mouseY > app.topbar_height and mouseY < app.frame_height - app.buttonbox_height:
@@ -432,7 +441,6 @@ def mouse_on_help(app, mouseX, mouseY):
     return False
 
 def onMousePress(app, mouseX, mouseY):
-    print(str(mouseX) + ', ' + str(mouseY))
     if editor_pressed(app, mouseX, mouseY):
         app.edit_mode = True
     else:
@@ -502,7 +510,7 @@ def onKeyPress(app, key):
                     app.code_lines.pop()
                     app.code_lines_index -= 1
                     app.text_cursor_y -= app.line_space
-                    app.text_cursor_x = len(app.code_lines[app.code_lines_index]) * app.letter_space + 60
+                    app.text_cursor_x = len(app.code_lines[app.code_lines_index]) * app.letter_space + 55
         elif key == 'space':
             app.code += ' '
             app.code_lines[app.code_lines_index] += ' '
