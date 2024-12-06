@@ -3,10 +3,6 @@ class list_obj():
     def  __init__(self, lst, idn):
         self.lst = lst
         self.idn = idn
-        # self.x = x
-        # self.y = y
-        # self.idn = idn
-        # self.scope = scope
 
     def get_assignment(self):
         return self.lst

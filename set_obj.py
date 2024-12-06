@@ -1,11 +1,10 @@
-
-class dict_obj():
-    def  __init__(self, dct, idn):
-        self.dct = dct
+class lset_obj():
+    def  __init__(self, set, idn):
+        self.set = set
         self.idn = idn
 
     def get_assignment(self):
-        return self.dct
+        return self.set
     
     def get_id(self):
         return self.idn
@@ -23,7 +22,7 @@ class dict_obj():
         return self.idn
     
     def __str__(self):
-        return f"Dict: {self.dct}, ID: {self.idn}"
+        return f"List: {self.set}, ID: {self.idn}"
     
     def __eq__(self, other):
         return self.idn == other.idn

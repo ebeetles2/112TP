@@ -3,6 +3,8 @@ import json
 import frame_obj
 import list_obj
 import dict_obj
+import set_obj
+import tuple_obj
 import copy
 
 class frame_stack:
@@ -97,8 +99,12 @@ class frame_stack:
                     self.unique_objects.add(val[1])
             elif (type_val == "<class 'list'>"):
                 self.handle_list(var, val[1], val[2])
+            elif (type_val == "<class 'tuple'>"):
+                self.handle_tuple(var, val[1], val[2])
             elif (type_val == "<class 'dict'>"):
                 self.handle_dict(var, val[1], val[2])
+            elif (type_val == "<class 'set'>"):
+                self.handle_set(var, val[1], val[2])
 
     def handle_list(self, var, lst, idn):
         new_list = list_obj.list_obj(lst, idn)
@@ -107,6 +113,14 @@ class frame_stack:
         if new_list not in self.unique_objects:
             self.objects.append(new_list)
             self.unique_objects.add(new_list)
+    
+    def handle_tuple(self, var, t, idn):
+        new_tuple = tuple_obj.tuple_obj(t, idn)
+        v = var_obj.var_obj(var, new_tuple)
+        self.vars.append(v)
+        if new_tuple not in self.unique_objects:
+            self.objects.append(new_tuple)
+            self.unique_objects.add(new_tuple)
 
     def handle_dict(self, var, dct, idn):
         new_dict = dict_obj.dict_obj(dct, idn)
@@ -115,6 +129,14 @@ class frame_stack:
         if new_dict not in self.unique_objects:
             self.objects.append(new_dict)
             self.unique_objects.add(new_dict)
+
+    def handle_set(self, var, st, idn):
+        new_set = set_obj.set_obj(st, idn)
+        v = var_obj.var_obj(var, new_set)
+        self.vars.append(v)
+        if new_set not in self.unique_objects:
+            self.objects.append(new_set)
+            self.unique_objects.add(new_set)
 
     def handle_local(self, locals):
         if (len(locals) == 0):

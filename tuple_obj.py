@@ -1,11 +1,14 @@
-
-class dict_obj():
-    def  __init__(self, dct, idn):
-        self.dct = dct
+class tuple_obj():
+    def  __init__(self, t, idn):
+        self.t = t
         self.idn = idn
+        # self.x = x
+        # self.y = y
+        # self.idn = idn
+        # self.scope = scope
 
     def get_assignment(self):
-        return self.dct
+        return self.t
     
     def get_id(self):
         return self.idn
@@ -23,7 +26,7 @@ class dict_obj():
         return self.idn
     
     def __str__(self):
-        return f"Dict: {self.dct}, ID: {self.idn}"
+        return f"List: {self.t}, ID: {self.idn}"
     
     def __eq__(self, other):
         return self.idn == other.idn

@@ -1,14 +1,11 @@
 from cmu_graphics import *
-import test
+import produce_trace
 import json
 import frame_stack
 from PIL import Image
 import label
 from cmu_graphics import pygameEvent
 
-# TODO 
-# margin around text and its box
-#loading code
 def onAppStart(app):
     app.frame_width, app.frame_height = 1200, 800
     app.dark_purple = color=rgb(32,26,35)
@@ -18,93 +15,44 @@ def onAppStart(app):
     app.light_purple = color=rgb(209,177,200)
     app.orange = color=rgb(255, 92, 0)
 
+    app.bg_color = app.dark_purple
+    app.text_color = 'white'
+
     app.prim_color = color=rgb(255, 203, 252)
     app.list_color = color=rgb(87, 98, 255)
+    app.tuple_color = color=rgb(68, 198, 25)
     app.dict_color = color=rgb(255, 87, 247)
 
     app.topbar_width, app.topbar_height = app.frame_width, 85
     app.input_width, app.input_height = 480, app.frame_height - app.topbar_height
     app.visual_x, app.visual_y = app.input_width, app.topbar_height
     app.text_x, app.text_y = 0, app.topbar_height
-    app.text_width, app.text_height = 1000, 10000
+    app.text_width, app.text_height = 2000, 10000
     app.visual_width, app.visual_height = 1000, 10000
 
     app.buttonbox_width, app.buttonbox_height = app.input_width, 100
-    app.help_x, app.help_y = 110, 20
+    app.help_x, app.help_y, app.help_size = 130, 43, 20
 
     app.numberline_x = 35
 
-    app.settings_x, app.settings_y, app.settings_size = 60, 43, 45
+    app.settings_x, app.settings_y, app.settings_size = 60, 43, 20
     app.setting_move = False
     app.settings_angle = 0
 
     app.edit_mode = False
     app.visual_mode = False
-    app.text_cursor_x, app.text_cursor_y = 55, 100
+    app.text_cursor_x, app.text_cursor_y = app.text_x + 55, app.text_y + 15
     app.text_cursor_blink = True
 
     app.stepsPerSecond = 2
-
+    
     app.code_x, app.code_y = app.text_x + 55, app.text_y + 17
 
-#     app.code = '''
-# def test(a):
-#     if len(a) == 0:
-#         return 0
-#     else:
-#         return a[0] + test(a[1:])
-# a = [1, 2, 3, 4, 5]
-# b = 'shasd'
-# a = {1:3,4:4,3434234:35435435}
-# test(a)'''
-
-    app.code = '''def merge_sort(my_list):
-
-    # Base Case
-    if len(my_list) <= 1:
-        return my_list
-
-    list_1 = my_list[0:len(my_list) // 2]
-    list_2 = my_list[len(my_list) // 2:]
-
-       # Induction Step
-    ans_1 = merge_sort(list_1)
-    ans_2 = merge_sort(list_2)
-
-    # Sorting and merging two sorted list
-    sort_list = sort_two_list(ans_1, ans_2)
-    return sort_list
-
-# Separate Function to sort and merge 2 sorted lists
-def sort_two_list(list_1, list_2):
-    final_list = []
-    i = 0
-    j = 0
-    while i < len(list_1) and j < len(list_2):
-        if list_1[i] <= list_2[j]:
-            final_list.append(list_1[i])
-            i += 1
-            continue
-        final_list.append(list_2[j])
-        j += 1
-
-    while i < len(list_1):
-        final_list.append(list_1[i])
-        i = i + 1
-
-    while j < len(list_2):
-        final_list.append(list_2[j])
-        j = j + 1
-
-    return final_list
-
-
-my_list = [3, 1, 4, 5]
-ans = merge_sort(my_list)'''
+    app.code = ''
     app.code_lines = ['']
     app.code_lines_index = 0
 
-    app.trace = test.test_tracing(app.code)
+    app.trace = produce_trace.produce_trace(app.code)
 
     app.frames = frame_stack.frame_stack(app.trace)
 
@@ -114,13 +62,6 @@ ans = merge_sort(my_list)'''
     app.line_index = 0
     app.lines = []
     app.current_line = None
-    load_lines(app)
-
-    # app.visual_dict = {
-    #     "<class 'list'>" : drawList,
-    #     "<class 'str'>" : drawVar,
-    #     "<class 'int'>" : drawVar
-    # }
 
     app.output_x, app.output_y = app.input_width + 50, app.topbar_height + 500
     app.globals_x, app.globals_y = app.input_width + 50, app.topbar_height + 70
@@ -139,14 +80,73 @@ ans = merge_sort(my_list)'''
     app.code_scroll = False
     app.visual_scroll = False
 
+    app.settings_mode = False
+    app.color_mode = 'Dark Mode'
+
+    app.file_button_x, app.file_button_y = app.help_x + 60, app.help_y - 23
+    app.file_button_w, app.file_button_h = 180, 50
+    app.help_mode = False
+
 def redrawAll(app):
-    drawRect(0, app.text_y, app.text_width, app.text_height, fill=app.dark_purple)
+    drawRect(0, app.text_y, app.text_width, app.text_height, fill=app.bg_color)
+    draw_text(app)
+
+    draw_panels(app)
+    draw_visuals(app)
+    draw_topbar(app)
+
+    if app.settings_mode:
+        draw_settings(app)
+
+    if app.help_mode:
+        draw_help(app)
+
+def draw_text(app):
     if app.visual_mode:
-        drawCode(app)
-    drawRect(0, app.topbar_height, app.numberline_x, app.frame_height - app.topbar_height - app.buttonbox_height, fill=app.dark_purple)
+        draw_code(app)
+    else:
+        for i in range(len(app.code_lines)):
+            drawLabel(app.code_lines[i], app.code_x, app.code_y + i * 20, fill=app.text_color, size=20, align = 'top-left', font='monospace')
+
+def draw_visuals(app):
+    if app.visual_mode:
+        objects = draw_objects(app, app.frames, app.obj_x, app.obj_y)
+        draw_frames(app, app.frames, objects, app.frames_x, app.frames_y)
+
+def draw_help(app):
+    drawRect(140, 285, 280, 90, fill=app.list_color)
+    drawLabel('Write your code here,', 150, 295, font='monospace', size=20, fill = app.text_color, align='left')
+    drawLabel('or enter file above.', 150, 315, font='monospace', size=20, fill = app.text_color, align='left')
+    drawLabel('Press generate to', 150, 335, font='monospace', size=20, fill = app.text_color, align='left')
+    drawLabel('visualize', 150, 355, font='monospace', size=20, fill = app.text_color, align='left')
+    drawRect(395, 533, 400, 30, fill=app.list_color)
+    drawLabel('Drag this line to resize panels',405, 543, font='monospace', size=20, fill = app.text_color, align='left')
+    drawRect(656, 202, 300, 100, fill=app.list_color)
+    drawLabel('Your visualized code', 666, 212, font='monospace', size=20, fill = app.text_color, align='left')
+    drawLabel('will appear in here.', 666, 232, font='monospace', size=20, fill = app.text_color, align='left')
+    drawLabel('Press left and right', 666, 252, font='monospace', size=20, fill = app.text_color, align='left')
+    drawLabel('arrows to step through', 666, 272, font='monospace', size=20, fill = app.text_color, align='left')
+    drawRect(394, 23, 280, 90, fill=app.list_color)
+    drawLabel('Enter your file here,', 404, 33, font='monospace', size=20, fill = app.text_color, align='left')
+    drawLabel('or write code below.', 404, 53, font='monospace', size=20, fill = app.text_color, align='left')
+    drawLabel('Press generate to', 404, 73, font='monospace', size=20, fill = app.text_color, align='left')
+    drawLabel('visualize', 404, 93, font='monospace', size=20, fill = app.text_color, align='left')
+
+def draw_topbar(app):
+    drawRect(0, 0, app.topbar_width, app.topbar_height, fill=app.bg_color)
+    settings = Image.open('settings.png')
+    drawImage(CMUImage(settings), app.settings_x, app.settings_y, width = 45, height=45, rotateAngle=app.settings_angle, align='center')
+    hlp = Image.open('help.png')  
+    drawImage(CMUImage(hlp), app.help_x, app.help_y, width = 50, height=50, align='center')
+    drawLabel('ENTER CODE FILE', app.file_button_x + 7, app.file_button_y + app.file_button_h // 2, fill=app.light_purple, size=18, font='monospace', align='left', bold = True)
+    drawRect(app.file_button_x, app.file_button_y, app.file_button_w, app.file_button_h, fill=None, border=app.light_purple)
+    drawLabel('PyViz', app.topbar_width // 2, app.topbar_height - 43, fill=app.grayish, size=50, font='monospace', bold=True)
+
+def draw_panels(app):
+    drawRect(0, app.topbar_height, app.numberline_x, app.frame_height - app.topbar_height - app.buttonbox_height, fill=app.bg_color)
     
-    drawRect(app.visual_x, app.visual_y, app.visual_width, app.visual_height, fill=app.dark_purple)
-    drawRect(0, app.frame_height - app.buttonbox_height, app.buttonbox_width, app.buttonbox_height, fill = app.dark_purple)
+    drawRect(app.visual_x, app.visual_y, app.visual_width, app.visual_height, fill=app.bg_color)
+    drawRect(0, app.frame_height - app.buttonbox_height, app.buttonbox_width, app.buttonbox_height, fill = app.bg_color)
 
     drawLine(0, app.topbar_height, app.topbar_width, app.topbar_height, fill=app.line_purple, lineWidth=5)
     drawLine(app.input_width, app.topbar_height, app.input_width, app.frame_height, fill=app.line_purple, lineWidth=5)
@@ -154,40 +154,36 @@ def redrawAll(app):
     drawLine(0, app.frame_height - app.buttonbox_height, app.buttonbox_width, app.frame_height - app.buttonbox_height, fill = app.line_purple, lineWidth = 5)
 
     drawImage('button.png', app.buttonbox_width // 2 - 110, app.frame_height - app.buttonbox_height + 50, align='center')
-    drawLabel('RESET', app.buttonbox_width // 2 - 110, app.frame_height - app.buttonbox_height + 50, align='center', size=20, fill=app.dark_purple, bold=True)
+    drawLabel('RESET', app.buttonbox_width // 2 - 110, app.frame_height - app.buttonbox_height + 50, align='center', size=20, fill=app.bg_color, bold=True)
     drawImage('button.png', app.buttonbox_width // 2 + 90, app.frame_height - app.buttonbox_height + 50, align='center')
-    drawLabel('GENERATE', app.buttonbox_width // 2 + 90, app.frame_height - app.buttonbox_height + 50, align='center', size=20, fill=app.dark_purple, bold=True)
+    drawLabel('GENERATE', app.buttonbox_width // 2 + 90, app.frame_height - app.buttonbox_height + 50, align='center', size=20, fill=app.bg_color, bold=True)
 
-    drawLine(app.text_cursor_x, app.text_cursor_y, app.text_cursor_x, app.text_cursor_y + 20, visible=app.text_cursor_blink, fill='white')
+    drawLine(app.text_cursor_x, app.text_cursor_y, app.text_cursor_x, app.text_cursor_y + 20, visible=app.text_cursor_blink, fill=app.text_color)
 
-    if app.visual_mode:
-        objects = draw_objects(app, app.frames, app.obj_x, app.obj_y)
-        draw_frames(app, app.frames, objects, app.frames_x, app.frames_y)
+def draw_settings(app):
+    color_button = None
+    if app.color_mode == "Dark Mode":
+        color_button = "Light Mode"
     else:
-        for i in range(len(app.code_lines)):
-            drawLabel(app.code_lines[i], app.code_x, app.code_y + i * 20, fill='white', size=20, align = 'top-left', font='monospace')
-    # drawLabel(app.code, app.code_x, app.code_y, fill='white', size=20, align='top-left', font='monospace')
-
-    drawRect(0, 0, app.topbar_width, app.topbar_height, fill=app.dark_purple)
-    settings = Image.open('settings.png')
-    drawImage(CMUImage(settings), app.settings_x, app.settings_y, width = app.settings_size, height=app.settings_size, rotateAngle=app.settings_angle, align='center')  
-    # drawImage('settings.png', app.settings_x, app.settings_y, width = app.settings_size, height=app.settings_size, rotateAngle=app.settings_angle, align='center')
-    drawImage('help.png', app.help_x, app.help_y)
+        color_button = "Dark Mode"
+    drawRect(0,0,app.frame_width,app.frame_height,fill=app.bg_color)
     drawLabel('PyViz', app.topbar_width // 2, app.topbar_height - 43, fill=app.grayish, size=50, font='monospace', bold=True)
+    drawLine(0, app.topbar_height, app.topbar_width, app.topbar_height, fill=app.line_purple, lineWidth=5)
+    settings = Image.open('settings.png')
+    drawImage(CMUImage(settings), app.settings_x, app.settings_y, width = 45, height=45, rotateAngle=app.settings_angle, align='center')
+    drawImage('button.png', app.frame_width // 2, app.frame_height // 2, align='center')
+    drawLabel(color_button, app.frame_width // 2, app.frame_height // 2, align='center', fill=app.onyx, font='monospace', size=20, bold = True)
 
-def drawCode(app):
-    if app.code == '': return
+def draw_code(app):
     i = 1
-    for line in app.code.splitlines():
-        # print(repr(line))
-        line_color = 'white'
+    for line in app.code_lines:
+        line_color = app.text_color
         if i == app.line_to_highlight:
             line_color = 'green'
         drawLabel(line, app.code_x, app.code_y + (i-1) * 20, size=20, align='top-left', fill = line_color, font='monospace')
         i += 1
 
 def draw_objects(app, frames, x, y):
-    # print('drawing')
     objects = {}
 
     i = 0
@@ -230,7 +226,6 @@ def draw_object(app, obj, objects, x, y):
 
 def draw_frames(app, frames, objects, x, y):
     y = draw_frame(app, 'global', frames.get_vars(), objects, x, y, False)
-    # y += 70
     for func in list(reversed(frames.get_stack())):
         current = False
         if func == frames.get_stack()[0]:
@@ -250,20 +245,18 @@ def draw_frame(app, func, vars, objects, x, y, current):
     draw_name(app, l)
     y += 20
     if len(vars) == 0: return
-    # print(vars)
     for var in vars:
         y += 20
         var_type = str(type(var.get_assignment()))
         var_val = var.get_assignment()
 
-        pointer_color = 'white'
+        pointer_color = app.text_color
         pointer_thickness = 1
         if current:
             pointer_color = app.dict_color
             pointer_thickness = 2
         if is_primitive(var_type):
             draw_value(app, var.get_name(), var_val, x, y)
-            # draw_pointer(app, (x + 300, y), x, y, pointer_color, pointer_thickness)
         else:
             l = label.label(var.get_name(), x, y)
             draw_name(app, l)
@@ -272,7 +265,7 @@ def draw_frame(app, func, vars, objects, x, y, current):
     return y
 
 def draw_name(app, name):
-    drawLabel(str(name.get_label()), name.get_x(), name.get_y(), fill = 'white', font = 'monospace', size = 20, align = 'right')
+    drawLabel(str(name.get_label()), name.get_x(), name.get_y(), fill = app.text_color, font = 'monospace', size = 20, align = 'right')
 
 def draw_value(app, name, val, x, y):
     drawLabel(str(name) + ' : ' + str(val), x, y, fill=app.orange, font = 'monospace', size=20, align='right')
@@ -286,8 +279,8 @@ def draw_list(app, lst, x, y):
     else:
         drawRect(x, y, len(lst) * 20, 20, fill=None, align='left',border=app.list_color)
     for i in range(len(lst)):
-        drawLabel(str(lst[i]), x + 10 + i * 20, y, fill='white', font='monospace', size=20)
-        drawLabel(str(i), x + 10 + i * 20, y - 20, fill='white', font='monospace', size=12)
+        drawLabel(str(lst[i]), x + 10 + i * 20, y, fill=app.text_color, font='monospace', size=20)
+        drawLabel(str(i), x + 10 + i * 20, y - 20, fill=app.text_color, font='monospace', size=12)
     return x, y
 
 def draw_dict(app, d, x, y):
@@ -295,10 +288,10 @@ def draw_dict(app, d, x, y):
         drawRect(x, y, 20, 20, fill=None, align='left',border=app.dict_color)
     else:
         width = get_max_length(d)
-        drawRect(x, y, width * 17, len(d) * 25, fill=None, align='left-top',border=app.dict_color)
+        drawRect(x, y, (width + 3) * 13 + 10, len(d) * 25 + 5, fill=None, align='left-top',border=app.dict_color)
     i = 0
     for k, v in d.items():
-        drawLabel(str(k) + ' : ' + str(v), x + 10, y + 20  * i + 10, fill='white', font='monospace', size=20, align = 'left-top')
+        drawLabel(str(k) + ' : ' + str(v), x + 10, y + 20  * i + 10, fill=app.text_color, font='monospace', size=20, align = 'left-top')
         i += 1
     return x, y
 
@@ -312,11 +305,26 @@ def get_max_length(d):
             max_v = len(str(v))
     return max_k + max_v
 
-def draw_set(app, s):
-    pass
+def draw_set(app, s, x, y):
+    if len(s) == 0:
+        drawRect(x, y, 20, 20, fill=None, align='left',border=app.list_color)
+    else:
+        drawRect(x, y, len(s) * 20, 20, fill=None, align='left',border=app.list_color)
+    i = 0
+    for e in s:
+        drawLabel(str(e), x + 10 + i * 20, y, fill=app.text_color, font='monospace', size=20)
+        i += 1
+    return x, y
 
-def draw_tuple(app, t):
-    pass
+def draw_tuple(app, t, x, y):
+    if len(t) == 0:
+        drawRect(x, y, 20, 20, fill=None, align='left',border=app.tuple_color)
+    else:
+        drawRect(x, y, len(t) * 20, 20, fill=None, align='left',border=app.tuple_color)
+    for i in range(len(t)):
+        drawLabel(str(t[i]), x + 10 + i * 20, y, fill=app.text_color, font='monospace', size=20)
+        drawLabel(str(i), x + 10 + i * 20, y - 20, fill=app.text_color, font='monospace', size=12)
+    return x, y
 
 def line_update(app, dir):
     if app.line_index + dir >= 0 and app.line_index + dir < len(app.lines):
@@ -329,58 +337,155 @@ def load_lines(app):
         app.lines.append(l)
     app.current_line = app.lines[0]
 
-def onMouseDrag(app, mouseX, mouseY):
+def mouse_on_line(app, mouseX):
     if mouseX > 380 and mouseX < app.frame_width - 50 and mouseX > app.input_width - 50 and mouseX < app.input_width + 50:
-        app.input_width = mouseX
-        app.visual_width, app.visual_height = app.frame_width - app.input_width, app.frame_height - app.topbar_height
-        app.buttonbox_width, app.buttonbox_height = app.input_width, 100
-        app.output_x, app.output_y = app.input_width + 50, app.topbar_height + 500
-        app.globals_x, app.globals_y = app.input_width + 50, app.topbar_height + 70
-        app.locals_x, app.locals_y = app.input_width + 50, app.topbar_height + 330
-        app.frames_x, app.frames_y = app.input_width + 50, app.topbar_height + 70
-        app.obj_x, app.obj_y = app.input_width + 300, app.topbar_height + 70
+        return True
+    return False
+def update_bounds(app, mouseX):
+    app.input_width = mouseX
+    app.visual_x, app.visual_y = app.input_width, app.topbar_height
+    app.text_x, app.text_y = 0, app.topbar_height
+    app.text_width, app.text_height = 2000, 10000
+    app.visual_width, app.visual_height = 1000, 10000
+    app.buttonbox_width, app.buttonbox_height = app.input_width, 100
+
+    app.output_x, app.output_y = app.input_width + 50, app.topbar_height + 500
+    app.globals_x, app.globals_y = app.input_width + 50, app.topbar_height + 70
+    app.locals_x, app.locals_y = app.input_width + 50, app.topbar_height + 330
+
+    app.frames_x, app.frames_y = app.visual_x + 160, app.visual_y + 40
+    app.obj_x, app.obj_y = app.visual_x + 350, app.visual_y + 50
+    
+def onMouseDrag(app, mouseX, mouseY):
+    if mouse_on_line(app, mouseX):
+        update_bounds(app, mouseX)
+
+def generate_pressed(app, mouseX, mouseY):
+    if mouseX > app.buttonbox_width // 2 + 10 and mouseX < app.buttonbox_width // 2 + 170 and mouseY > app.frame_height - app.buttonbox_height + 25 and mouseY < app.frame_height - app.buttonbox_height + 70:
+        return True
+    return False
+
+def generate(app):
+    app.trace = produce_trace.produce_trace(app.code)
+    app.frames = frame_stack.frame_stack(app.trace)
+    app.edit_mode = False
+    app.visual_mode = True
+    load_lines(app)
+
+def reset_pressed(app, mouseX, mouseY):
+    if mouseX > app.buttonbox_width // 2 - 195 and mouseX < app.buttonbox_width // 2 - 30 and mouseY > app.frame_height - app.buttonbox_height + 25 and mouseY < app.frame_height - app.buttonbox_height + 70:
+        return True
+    return False
+
+def reset(app):
+    app.code = ''
+    app.code_lines = ['']
+    app.code_lines_index = 0
+    app.text_cursor_x, app.text_cursor_y = 55, 100
+    app.edit_mode = True
+    app.visual_mode = False
+    app.existing_objects = {}
+    app.vars = []
+    app.unique_vars = set()
+    app.lines = []
+    app.line_to_highlight = 1
+
+def editor_pressed(app, mouseX, mouseY):
+    if mouseX > app.numberline_x and mouseX < app.input_width and mouseY > app.topbar_height and mouseY < app.frame_height - app.buttonbox_height:
+        return True
+    return False
+
+def swap_colors(app):
+    if app.color_mode == "Dark Mode":
+        app.color_mode = "Light Mode"
+        app.text_color = 'black'
+        app.bg_color = 'white'
+    else:
+        app.color_mode = "Dark Mode"
+        app.text_color = 'white'
+        app.bg_color = app.dark_purple
+
+def mouse_on_color(app, mouseX, mouseY):
+    if mouseX > app.frame_width // 2 - 80 and mouseX < app.frame_width // 2 + 80 and mouseY > app.frame_height // 2 - 23 and mouseY < app.frame_height // 2 + 23:
+        return True
+    return False
+
+def get_user_input(app):
+    raw_input = app.getTextInput('Code File')
+    with open(raw_input, 'r') as file:
+        app.raw_input_string = file.read()
+    app.code = app.raw_input_string
+
+def convert_user_input(app):
+    app.code_lines = []
+    for line in app.code.splitlines():
+        app.code_lines.append(line)
+
+def mouse_on_input_file_button(app, mouseX, mouseY):
+    if mouseX > app.file_button_x and mouseX < app.file_button_x + app.file_button_w and mouseY > app.file_button_y and mouseY < app.file_button_y + app.file_button_h:
+        return True
+    return False
+
+def mouse_on_help(app, mouseX, mouseY):
+    if mouseX > app.help_x - app.help_size and mouseX < app.help_x + app.help_size and mouseY > app.help_y - app.help_size and mouseY < app.help_y + app.help_size:
+        return True
+    return False
 
 def onMousePress(app, mouseX, mouseY):
     print(str(mouseX) + ', ' + str(mouseY))
-    if mouseX > app.numberline_x and mouseX < app.input_width and mouseY > app.topbar_height and mouseY < app.frame_height - app.buttonbox_height:
+    if editor_pressed(app, mouseX, mouseY):
         app.edit_mode = True
     else:
         app.edit_mode = False
 
-    # Generate and Reset buttons
-    if mouseX > app.buttonbox_width // 2 + 10 and mouseX < app.buttonbox_width // 2 + 170 and mouseY > app.frame_height - app.buttonbox_height + 25 and mouseY < app.frame_height - app.buttonbox_height + 70:
-        app.trace = test.test_tracing(app.code)
-        print(app.trace)
-        app.frames = frame_stack.frame_stack(app.trace)
-        app.edit_mode = False
-        app.visual_mode = True
-        # print('clicked')
-    elif mouseX > app.buttonbox_width // 2 - 195 and mouseX < app.buttonbox_width // 2 - 30 and mouseY > app.frame_height - app.buttonbox_height + 25 and mouseY < app.frame_height - app.buttonbox_height + 70:
-        app.code = ''
-        app.code_lines = ['']
-        app.code_lines_index = 0
-        app.text_cursor_x, app.text_cursor_y = 55, 100
-        app.edit_mode = True
-        app.visual_mode = False
-        app.existing_objects = {}
-        app.vars = []
-        app.unique_vars = set()
-        app.lines = []
-        # print('click')
-    if app.edit_mode:
-        pass
+    if generate_pressed(app, mouseX, mouseY):
+        generate(app)
+    elif reset_pressed(app, mouseX, mouseY):
+        reset(app)
+    
+    if mouse_on_settings(app, mouseX, mouseY) and not app.settings_mode:
+        app.settings_mode = True
+    elif mouse_on_settings(app, mouseX, mouseY):
+        app.settings_mode = False
+
+    if mouse_on_help(app, mouseX, mouseY) and not app.help_mode:
+        app.help_mode = True
+    else:
+        app.help_mode = False
+    
+    if mouse_on_color(app, mouseX, mouseY) and app.settings_mode:
+        swap_colors(app)
+
+    if mouse_on_input_file_button(app, mouseX, mouseY):
+        get_user_input(app)
+        convert_user_input(app)
+
+def mouse_on_settings(app, mouseX, mouseY):
+    if mouseX > app.settings_x - app.settings_size and mouseX < app.settings_x + app.settings_size and mouseY > app.settings_y - app.settings_size and mouseY < app.settings_y + app.settings_size:
+        return True
+    return False
+
+def mouse_on_code_panel(app, mouseX, mouseY):
+    if mouseX > app.numberline_x and mouseX < app.input_width and mouseY > app.topbar_height and mouseY < app.frame_height - app.buttonbox_height:
+        return True
+    return False
+
+def mouse_on_visual_panel(app, mouseX, mouseY):
+    if mouseX > app.input_width and mouseX < app.frame_width and mouseY > app.topbar_height and mouseY < app.frame_height:
+        return True
+    return False
 
 def onMouseMove(app, mouseX, mouseY):
-    if mouseX > app.settings_x and mouseX < app.settings_x + app.settings_size and mouseY > app.settings_y and mouseY < app.settings_y + app.settings_size:
+    if mouse_on_settings(app, mouseX, mouseY):
         app.setting_move = True
     else:
         app.setting_move = False
-    if mouseX > app.numberline_x and mouseX < app.input_width and mouseY > app.topbar_height and mouseY < app.frame_height - app.buttonbox_height:
+    if mouse_on_code_panel(app, mouseX, mouseY):
         app.code_scroll = True
     else:
         app.code_scroll = False
 
-    if mouseX > app.input_width and mouseX < app.frame_width and mouseY > app.topbar_height and mouseY < app.frame_height:
+    if mouse_on_visual_panel(app, mouseX, mouseY):
         app.visual_scroll = True
     else:
         app.visual_scroll = False
@@ -388,8 +493,8 @@ def onMouseMove(app, mouseX, mouseY):
 def onKeyPress(app, key):
     if app.edit_mode:
         if key == 'backspace':
+            app.code = app.code[:-1]
             if app.code_lines[0] != '':
-                app.code = app.code[:-1]
                 if app.code_lines[app.code_lines_index] != '':
                     app.code_lines[app.code_lines_index] = app.code_lines[app.code_lines_index][:-1]
                     app.text_cursor_x -= app.letter_space
@@ -417,29 +522,18 @@ def onKeyPress(app, key):
             app.code_lines[app.code_lines_index] += key
             app.text_cursor_x += app.letter_space
     else:
-        # for ob in app.existing_objects:
-        #     print(app.existing_objects[ob])
-        # for v in app.vars:
-        #     print(str(v))
-        # print(len(app.vars))
         if key == 'right':
-            # if app.line_index < len(app.lines) - 1:
             app.frames.step_forward()
             line_update(app, 1)
-            print(app.frames.get_vars())
         elif key == 'left':
-            # if app.line_index > 0:
             app.frames.step_backward()
             line_update(app, -1)
-            print(app.frames.get_stack())
         if len(app.lines) > 0:
-            print('updated')
             app.line_to_highlight = app.lines[app.line_index]['line']
 
 # scroll wheel code from Austin provided on Ed
 
 def handlePygameEvent(event, callUserFn, app):
-    # pygame.MOUSEWHEEL == 1027
     if event.type == 1027:
         callUserFn('onMouseWheel', (event.x, event.y))
 
@@ -450,15 +544,18 @@ def onMouseWheel(app, dx, dy):
     dy *= 20
     if app.text_y + dy < app.topbar_height and app.code_scroll:
         app.text_y += dy
+        app.text_cursor_y += dy
     if app.text_x - dx < 20 and app.code_scroll:
         app.text_x -= dx
+        app.text_cursor_x -= dx
 
     if app.visual_y - dy < app.topbar_height + 20 and app.visual_scroll:
         app.visual_y -= dy
-        
+    
     app.frames_x, app.frames_y = app.visual_x + 160, app.visual_y + 40
     app.obj_x, app.obj_y = app.visual_x + 350, app.visual_y + 50
-    app.code_x, app.code_y = app.text_x + 55, app.text_y + 30
+    app.code_x, app.code_y = app.text_x + 55, app.text_y + 35
+
 def onStep(app):
     app.drawn = True
     if app.setting_move:
