@@ -24,11 +24,9 @@ class frame_obj:
     def handle_frame(self):
         if (len(self.trace) == 0):
             return
-        # print(globals)
         for var in self.trace:
             val = self.trace[var]
             type_val = val[0]
-            # print(type_val)
             if (type_val == "<class 'str'>" or type_val == "<class 'int'>"):
                 v = var_obj.var_obj(var, val[1])
                 self.vars.append(v)

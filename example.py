@@ -1,4 +1,4 @@
-def merge_sort(my_list):
+def merge_sort(my_list): # merge sort code from https://www.freecodecamp.org/news/how-to-sort-recursively-in-python/ for testing purposes only
 
     # Base Case
     if len(my_list) <= 1:

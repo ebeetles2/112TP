@@ -53,7 +53,6 @@ class frame_stack:
 
     def load_lines(self):
         self.user_input_json = json.loads(self.trace)
-        # print(self.user_input_json)
         for line in self.user_input_json:
             self.lines.append(line)
         self.current_line = self.lines[0]
@@ -79,17 +78,13 @@ class frame_stack:
 
     def handle_func(self, func):
         pass
-        # if (func != '<module>'):
-        #     drawLabel(str(func), 300, 20)
 
     def handle_global(self, globals):
         if (len(globals) == 0):
             return
-        # print(globals)
         for var in globals:
             val = globals[var]
             type_val = val[0]
-            # print(type_val)
             if (type_val == "<class 'str'>" or type_val == "<class 'int'>"):
                 v = var_obj.var_obj(var, val[1])
                 self.vars.append(v)
@@ -143,7 +138,6 @@ class frame_stack:
         for func in locals:
             func_name = func[0]
             func_dict = func[1]
-            # print(func_dict)
             new_frame = frame_obj.frame_obj(func_name, func_dict)
             new_frame.handle_frame()
             self.stack.append(new_frame)

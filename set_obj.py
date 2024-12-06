@@ -1,4 +1,4 @@
-class lset_obj():
+class set_obj():
     def  __init__(self, set, idn):
         self.set = set
         self.idn = idn

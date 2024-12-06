@@ -540,7 +540,6 @@ def onKeyPress(app, key):
             app.line_to_highlight = app.lines[app.line_index]['line']
 
 # scroll wheel code from Austin provided on Ed
-
 def handlePygameEvent(event, callUserFn, app):
     if event.type == 1027:
         callUserFn('onMouseWheel', (event.x, event.y))
